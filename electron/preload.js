@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   toggleFavorite: (id) => ipcRenderer.invoke('toggle-favorite', id),
   updateTags: (id, tags) => ipcRenderer.invoke('update-tags', id, tags),
   startDrag: (filePath) => ipcRenderer.send('start-drag', filePath),
+  showInFolder: (filePath) => ipcRenderer.invoke('show-in-folder', filePath),
   onScanProgress: (callback) => {
     ipcRenderer.on('scan-progress', (_event, data) => callback(data));
   },

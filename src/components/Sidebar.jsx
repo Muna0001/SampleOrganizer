@@ -33,6 +33,17 @@ function Sidebar({ filters, onFiltersChange, stats }) {
 
   return (
     <div className="sidebar">
+      <div className="sidebar-section">
+        <label className="sidebar-label">Search</label>
+        <input
+          type="text"
+          className="search-input"
+          placeholder="Search samples..."
+          value={filters.search}
+          onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
+        />
+      </div>
+
       {stats?.favorites > 0 && (
         <div className="sidebar-section">
           <button
@@ -44,17 +55,6 @@ function Sidebar({ filters, onFiltersChange, stats }) {
           </button>
         </div>
       )}
-
-      <div className="sidebar-section">
-        <label className="sidebar-label">Search</label>
-        <input
-          type="text"
-          className="search-input"
-          placeholder="Search samples..."
-          value={filters.search}
-          onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
-        />
-      </div>
 
       <div className="sidebar-section">
         <label className="sidebar-label">Type</label>

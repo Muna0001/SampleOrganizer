@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Sidebar from './components/Sidebar';
 import SampleList from './components/SampleList';
 import InstrumentPanel from './components/InstrumentPanel';
@@ -22,6 +22,8 @@ function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState({ processed: 0, total: 0 });
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState('asc');
   const debounceRef = useRef(null);
 
   // Instrument state
@@ -30,6 +32,45 @@ function App() {
   const [keyboardSample, setKeyboardSample] = useState(null);
   const [drumPads, setDrumPads] = useState(Array(9).fill(null));
   const samplerEngineRef = useRef(null);
+
+  // Sorted sample list
+  const sortedSamples = useMemo(() => {
+    if (!sortKey) return samples;
+    return [...samples].sort((a, b) => {
+      let av = a[sortKey];
+      let bv = b[sortKey];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === 'string') av = av.toLowerCase();
+      if (typeof bv === 'string') bv = bv.toLowerCase();
+      if (av < bv) return sortDir === 'asc' ? -1 : 1;
+      if (av > bv) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [samples, sortKey, sortDir]);
+
+  // Arrow key navigation through sorted sample list
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (sortedSamples.length === 0) return;
+        const currentIndex = currentSample
+          ? sortedSamples.findIndex((s) => s.id === currentSample.id)
+          : -1;
+        let nextIndex;
+        if (e.key === 'ArrowDown') {
+          nextIndex = currentIndex < sortedSamples.length - 1 ? currentIndex + 1 : currentIndex;
+        } else {
+          nextIndex = currentIndex > 0 ? currentIndex - 1 : 0;
+        }
+        setCurrentSample(sortedSamples[nextIndex]);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sortedSamples, currentSample]);
 
   // Init sampler engine
   useEffect(() => {
@@ -116,7 +157,7 @@ function App() {
   return (
     <div className="app">
       <div className="app-header">
-        <h1>Sample Organizer</h1>
+        <h1><span className="app-title-pixel">OH A COMBER</span> <span className="app-title-sub">— Sample Organizer</span></h1>
         <button className="scan-btn" onClick={handleScan} disabled={isScanning}>
           {isScanning
             ? `Scanning... ${scanProgress.processed} / ${scanProgress.total}`
@@ -127,13 +168,23 @@ function App() {
         <Sidebar filters={filters} onFiltersChange={setFilters} stats={stats} />
         <div className="main-content">
           <SampleList
-            samples={samples}
+            samples={sortedSamples}
             onPlay={handlePlay}
             currentSample={currentSample}
             isPlaying={isPlaying}
             onToggleFavorite={handleToggleFavorite}
             onLoadToKeyboard={handleLoadToKeyboard}
             instrumentOpen={instrumentOpen}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onSort={(key) => {
+              if (sortKey === key) {
+                setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+              } else {
+                setSortKey(key);
+                setSortDir('asc');
+              }
+            }}
           />
           <InstrumentPanel
             isOpen={instrumentOpen}

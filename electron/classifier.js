@@ -5,7 +5,7 @@ const TYPE_PATTERNS = {
   clap:       /\b(clap|clp)\b/i,
   cymbal:     /\b(cymbal|crash|ride)\b/i,
   tom:        /\b(tom)\b/i,
-  percussion: /\b(perc|percussion|shaker|tambourine|conga|bongo|rim)\b/i,
+  percussion: /\b(perc|percussion|drums?|shaker|tambourine|conga|bongo|rim)\b/i,
   bass:       /\b(bass|sub|808)\b/i,
   synth:      /\b(synth|lead|pad|pluck|arp|stab)\b/i,
   vocal:      /\b(vocal|vox|voice|acapella|choir)\b/i,
@@ -18,8 +18,18 @@ const TYPE_PATTERNS = {
 };
 
 function classify(filePath) {
-  const searchText = filePath.replace(/[/_-]/g, ' ');
+  // Replace common path/filename separators with spaces for matching
+  const searchText = filePath.replace(/[/_\-\.]/g, ' ');
 
+  // First pass: try to match from the filename itself
+  const filename = searchText.split('/').pop() || searchText;
+  for (const [type, pattern] of Object.entries(TYPE_PATTERNS)) {
+    if (pattern.test(filename)) {
+      return type;
+    }
+  }
+
+  // Second pass: check parent folders for clues
   for (const [type, pattern] of Object.entries(TYPE_PATTERNS)) {
     if (pattern.test(searchText)) {
       return type;

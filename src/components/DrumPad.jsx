@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import useMidi from '../audio/useMidi';
 
 // Pad layout: bottom-left = 1, top-right = 9
 // Displayed as:
@@ -10,6 +11,12 @@ const DISPLAY_ORDER = [6, 7, 8, 3, 4, 5, 0, 1, 2]; // maps grid position to pad 
 
 function DrumPad({ engine, pads, onPadClick, onClearPad }) {
   const [triggered, setTriggered] = useState(new Set());
+  const engineRef = useRef(engine);
+  const padsRef = useRef(pads);
+  const onPadClickRef = useRef(onPadClick);
+  engineRef.current = engine;
+  padsRef.current = pads;
+  onPadClickRef.current = onPadClick;
 
   const flash = useCallback((index) => {
     setTriggered((prev) => new Set(prev).add(index));
@@ -24,15 +31,57 @@ function DrumPad({ engine, pads, onPadClick, onClearPad }) {
 
   const handleTrigger = useCallback(
     (index) => {
-      if (pads[index]) {
-        engine?.triggerOneShot(pads[index].path);
+      if (padsRef.current[index]) {
+        engineRef.current?.triggerOneShot(padsRef.current[index].path);
         flash(index);
       } else {
-        onPadClick(index);
+        onPadClickRef.current(index);
       }
     },
-    [engine, pads, onPadClick, flash]
+    [flash]
   );
+
+  // MIDI input — notes 48–56 (C3–G#3) map to pads 0–8
+  const MIDI_DRUM_BASE = 48;
+  const midiVoices = useRef(new Map()); // midiNote → voiceId
+
+  const handleMidiNoteOn = useCallback(
+    (midiNote) => {
+      const padIndex = midiNote - MIDI_DRUM_BASE;
+      if (padIndex < 0 || padIndex >= 9) return;
+      if (!padsRef.current[padIndex]) {
+        onPadClickRef.current(padIndex);
+        return;
+      }
+      const voiceId = engineRef.current?.playNote(padsRef.current[padIndex].path, 0, `midi_pad_${midiNote}`);
+      if (voiceId) midiVoices.current.set(midiNote, voiceId);
+      setTriggered((prev) => new Set(prev).add(padIndex));
+    },
+    []
+  );
+
+  const handleMidiNoteOff = useCallback(
+    (midiNote) => {
+      const padIndex = midiNote - MIDI_DRUM_BASE;
+      if (padIndex < 0 || padIndex >= 9) return;
+      const voiceId = midiVoices.current.get(midiNote);
+      if (voiceId) {
+        engineRef.current?.stopNote(voiceId);
+        midiVoices.current.delete(midiNote);
+      }
+      setTriggered((prev) => {
+        const next = new Set(prev);
+        next.delete(padIndex);
+        return next;
+      });
+    },
+    []
+  );
+
+  useMidi({
+    onNoteOn: handleMidiNoteOn,
+    onNoteOff: handleMidiNoteOff,
+  });
 
   useEffect(() => {
     const handleKeyDown = (e) => {

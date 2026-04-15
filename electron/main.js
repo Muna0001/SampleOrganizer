@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, nativeImage, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, nativeImage, protocol, net, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -40,11 +40,22 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Grant all permissions (MIDI, media, etc.) so Web MIDI API works in the renderer
+  const { session } = require('electron');
+  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
+    callback(true);
+  });
+
   // Serve local audio files via sample:// protocol
   // AIFF isn't supported by Chromium — convert to WAV on the fly using macOS afconvert
   protocol.handle('sample', (request) => {
-    const filePath = decodeURIComponent(new URL(request.url).pathname);
+    // Extract path: strip scheme, decode percent-encoded characters
+    const rawUrl = request.url.replace(/^sample:\/\//, '');
+    const filePath = decodeURIComponent(rawUrl);
     const ext = path.extname(filePath).toLowerCase();
+
+    // Build a proper file:// URL that escapes special chars like #
+    const toFileUrl = (p) => 'file://' + p.split('/').map(seg => encodeURIComponent(seg)).join('/');
 
     if (ext === '.aif' || ext === '.aiff') {
       let wavPath = aiffCache.get(filePath);
@@ -54,14 +65,13 @@ app.whenReady().then(() => {
           execFileSync('afconvert', ['-f', 'WAVE', '-d', 'LEI16', filePath, wavPath]);
           aiffCache.set(filePath, wavPath);
         } catch {
-          // Fall back to raw file if conversion fails
-          return net.fetch(`file://${filePath}`);
+          return net.fetch(toFileUrl(filePath));
         }
       }
-      return net.fetch(`file://${wavPath}`);
+      return net.fetch(toFileUrl(wavPath));
     }
 
-    return net.fetch(`file://${filePath}`);
+    return net.fetch(toFileUrl(filePath));
   });
 
   const dbPath = path.join(app.getPath('userData'), 'samples.db');
@@ -97,6 +107,10 @@ ipcMain.handle('toggle-favorite', (_event, id) => {
 
 ipcMain.handle('update-tags', (_event, id, tags) => {
   return updateTags(id, tags);
+});
+
+ipcMain.handle('show-in-folder', (_event, filePath) => {
+  shell.showItemInFolder(filePath);
 });
 
 // Native drag-to-DAW: hands the real file path to the OS drag system

@@ -1,3 +1,5 @@
+import React from 'react';
+
 function formatDuration(seconds) {
   if (!seconds) return '\u2014';
   const mins = Math.floor(seconds / 60);
@@ -6,17 +8,57 @@ function formatDuration(seconds) {
 }
 
 function SampleRow({ sample, onPlay, isActive, isPlaying, onToggleFavorite, onLoadToKeyboard, instrumentOpen }) {
+  const rowRef = React.useRef(null);
+  const [contextMenu, setContextMenu] = React.useState(null);
+
+  React.useEffect(() => {
+    if (isActive && rowRef.current) {
+      rowRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [isActive]);
+
+  React.useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
+  }, [contextMenu]);
+
   const handleDragStart = (e) => {
     e.preventDefault();
     window.electronAPI.startDrag(sample.path);
   };
 
+  const handleContextMenu = (e) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
   return (
     <div
+      ref={rowRef}
       className={`sample-row ${isActive ? 'active' : ''}`}
       draggable
       onDragStart={handleDragStart}
+      onContextMenu={handleContextMenu}
     >
+      {contextMenu && (
+        <div
+          className="context-menu"
+          style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, zIndex: 10000 }}
+        >
+          <button
+            className="context-menu-item"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.electronAPI.showInFolder(sample.path);
+              setContextMenu(null);
+            }}
+          >
+            Reveal in Finder
+          </button>
+        </div>
+      )}
       <span className="col-fav">
         <button
           className={`fav-btn ${sample.favorite ? 'on' : ''}`}
@@ -30,15 +72,13 @@ function SampleRow({ sample, onPlay, isActive, isPlaying, onToggleFavorite, onLo
         <button className="play-btn" onClick={() => onPlay(sample)}>
           {isPlaying ? '\u25A0' : '\u25B6'}
         </button>
-        {instrumentOpen && (
-          <button
-            className="load-kb-btn"
-            title="Load to keyboard"
-            onClick={(e) => { e.stopPropagation(); onLoadToKeyboard(sample); }}
-          >
-            K
-          </button>
-        )}
+        <button
+          className="load-kb-btn"
+          title="Load to keyboard"
+          onClick={(e) => { e.stopPropagation(); onLoadToKeyboard(sample); }}
+        >
+          K
+        </button>
       </span>
       <span className="col-name" title={sample.path}>
         {sample.filename}

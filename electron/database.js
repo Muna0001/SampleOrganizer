@@ -128,8 +128,9 @@ function getSamples(filters = {}) {
   const params = [];
 
   if (filters.search) {
-    query += ' AND filename LIKE ?';
-    params.push(`%${filters.search}%`);
+    query += ' AND (filename LIKE ? OR path LIKE ? OR pack LIKE ?)';
+    const term = `%${filters.search}%`;
+    params.push(term, term, term);
   }
 
   if (filters.types && filters.types.length > 0) {

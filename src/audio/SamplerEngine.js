@@ -12,17 +12,13 @@ class SamplerEngine {
       return this.bufferCache.get(samplePath);
     }
 
-    const response = await fetch(`sample://${samplePath}`);
+    const response = await fetch(`sample://${samplePath.replaceAll('#', '%23')}`);
     const arrayBuffer = await response.arrayBuffer();
     const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
     this.bufferCache.set(samplePath, audioBuffer);
     return audioBuffer;
   }
 
-  /**
-   * Play a sample pitched by the given number of semitones.
-   * Returns a voiceId that can be passed to stopNote() for sustained playback.
-   */
   playNote(samplePath, semitones = 0, voiceId = null) {
     const buffer = this.bufferCache.get(samplePath);
     if (!buffer) return null;
@@ -30,6 +26,9 @@ class SamplerEngine {
     if (this.audioContext.state === 'suspended') {
       this.audioContext.resume();
     }
+
+    const id = voiceId || `${Date.now()}_${Math.random()}`;
+    this._killVoice(id);
 
     const source = this.audioContext.createBufferSource();
     source.buffer = buffer;
@@ -40,38 +39,53 @@ class SamplerEngine {
     source.connect(gainNode);
     gainNode.connect(this.masterGain);
 
-    source.start(0);
-
-    const id = voiceId || `${Date.now()}_${Math.random()}`;
-    this.activeVoices.set(id, { source, gainNode });
+    const voice = { source, gainNode, semitones };
+    this.activeVoices.set(id, voice);
 
     source.onended = () => {
-      this.activeVoices.delete(id);
+      if (this.activeVoices.get(id) === voice) {
+        this.activeVoices.delete(id);
+      }
     };
 
+    source.start(0);
     return id;
   }
 
-  /** Stop a sustained voice with a short fade-out. */
+  _killVoice(voiceId) {
+    const voice = this.activeVoices.get(voiceId);
+    if (!voice) return;
+    try { voice.source.stop(); } catch { /* already stopped */ }
+    voice.gainNode.disconnect();
+    this.activeVoices.delete(voiceId);
+  }
+
   stopNote(voiceId) {
     const voice = this.activeVoices.get(voiceId);
     if (!voice) return;
 
     const now = this.audioContext.currentTime;
+    voice.gainNode.gain.cancelScheduledValues(now);
     voice.gainNode.gain.setValueAtTime(voice.gainNode.gain.value, now);
     voice.gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-    voice.source.stop(now + 0.05);
+    voice.source.stop(now + 0.06);
     this.activeVoices.delete(voiceId);
   }
 
-  /** Fire-and-forget playback at original pitch (for drum pads). */
+  setPitchBend(bendAmount, rangeSemitones = 2) {
+    const bendSemitones = bendAmount * rangeSemitones;
+    for (const [, voice] of this.activeVoices) {
+      voice.source.playbackRate.value = Math.pow(2, (voice.semitones + bendSemitones) / 12);
+    }
+  }
+
   triggerOneShot(samplePath) {
     this.playNote(samplePath, 0, null);
   }
 
   dispose() {
-    for (const [, voice] of this.activeVoices) {
-      try { voice.source.stop(); } catch { /* already stopped */ }
+    for (const [id] of this.activeVoices) {
+      this._killVoice(id);
     }
     this.activeVoices.clear();
     this.audioContext.close();

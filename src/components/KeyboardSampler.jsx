@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import useMidi from '../audio/useMidi';
 
 const NOTES = [
   { note: 'C3',  semi: 0,  black: false, key: 'a' },
@@ -33,24 +34,31 @@ const KEY_TO_NOTE = new Map(
 
 function KeyboardSampler({ engine, sample }) {
   const [activeKeys, setActiveKeys] = useState(new Set());
-  const voiceMap = useRef(new Map()); // keyboard key → voiceId
+  const voiceMap = useRef(new Map()); // note name → voiceId
+  const engineRef = useRef(engine);
+  const sampleRef = useRef(sample);
+  engineRef.current = engine;
+  sampleRef.current = sample;
 
   const noteOn = useCallback(
     (noteObj) => {
-      if (!engine || !sample) return;
-      const voiceId = engine.playNote(sample.path, noteObj.semi, `kb_${noteObj.note}`);
+      const eng = engineRef.current;
+      const smp = sampleRef.current;
+      if (!eng || !smp) return;
+      const voiceId = eng.playNote(smp.path, noteObj.semi, `kb_${noteObj.note}`);
       voiceMap.current.set(noteObj.note, voiceId);
       setActiveKeys((prev) => new Set(prev).add(noteObj.note));
     },
-    [engine, sample]
+    []
   );
 
   const noteOff = useCallback(
     (noteObj) => {
-      if (!engine) return;
+      const eng = engineRef.current;
+      if (!eng) return;
       const voiceId = voiceMap.current.get(noteObj.note);
       if (voiceId) {
-        engine.stopNote(voiceId);
+        eng.stopNote(voiceId);
         voiceMap.current.delete(noteObj.note);
       }
       setActiveKeys((prev) => {
@@ -59,8 +67,52 @@ function KeyboardSampler({ engine, sample }) {
         return next;
       });
     },
-    [engine]
+    []
   );
+
+  // MIDI input — C3 (MIDI 48) = semi 0 (original pitch)
+  // Allow C1 (MIDI 24) to B5 (MIDI 83) = 2 octaves down to 2 octaves up
+  const MIDI_BASE = 48; // C3 = original pitch
+  const MIDI_LOW = 24;  // C1
+  const MIDI_HIGH = 83; // B5
+  const midiVoiceMap = useRef(new Map()); // midiNote → voiceId
+
+  useMidi({
+    onNoteOn: (midiNote) => {
+      if (midiNote < MIDI_LOW || midiNote > MIDI_HIGH) return;
+      const eng = engineRef.current;
+      const smp = sampleRef.current;
+      if (!eng || !smp) return;
+      const semi = midiNote - MIDI_BASE;
+      const voiceId = eng.playNote(smp.path, semi, `midi_${midiNote}`);
+      if (voiceId) midiVoiceMap.current.set(midiNote, voiceId);
+      // Highlight matching on-screen key if it exists
+      const noteObj = NOTES.find((n) => n.semi === semi);
+      if (noteObj) setActiveKeys((prev) => new Set(prev).add(noteObj.note));
+    },
+    onPitchBend: (bendAmount) => {
+      const eng = engineRef.current;
+      if (eng) eng.setPitchBend(bendAmount);
+    },
+    onNoteOff: (midiNote) => {
+      const eng = engineRef.current;
+      if (!eng) return;
+      const voiceId = midiVoiceMap.current.get(midiNote);
+      if (voiceId) {
+        eng.stopNote(voiceId);
+        midiVoiceMap.current.delete(midiNote);
+      }
+      const semi = midiNote - MIDI_BASE;
+      const noteObj = NOTES.find((n) => n.semi === semi);
+      if (noteObj) {
+        setActiveKeys((prev) => {
+          const next = new Set(prev);
+          next.delete(noteObj.note);
+          return next;
+        });
+      }
+    },
+  });
 
   useEffect(() => {
     const handleKeyDown = (e) => {
