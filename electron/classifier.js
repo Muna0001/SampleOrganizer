@@ -1,21 +1,26 @@
-const TYPE_PATTERNS = {
-  kick:       /\b(kick|kik|bd)\b/i,
-  snare:      /\b(snare|snr|sd)\b/i,
-  hihat:      /\b(hi[\s-]?hat|hh|hat)\b/i,
-  clap:       /\b(clap|clp)\b/i,
-  cymbal:     /\b(cymbal|crash|ride)\b/i,
-  tom:        /\b(tom)\b/i,
-  percussion: /\b(perc|percussion|drums?|shaker|tambourine|conga|bongo|rim)\b/i,
-  bass:       /\b(bass|sub|808)\b/i,
-  synth:      /\b(synth|lead|pad|pluck|arp|stab)\b/i,
-  vocal:      /\b(vocal|vox|voice|acapella|choir)\b/i,
-  fx:         /\b(fx|effect|riser|impact|sweep|transition|whoosh|noise)\b/i,
-  keys:       /\b(piano|keys|organ|rhodes|wurlitzer|electric[\s-]?piano)\b/i,
-  guitar:     /\b(guitar|gtr|guit)\b/i,
-  strings:    /\b(strings|violin|cello|viola|orchestr)/i,
-  brass:      /\b(brass|trumpet|horn|trombone|sax)/i,
-  loop:       /\b(loop|beat|groove|break)\b/i,
-};
+// Patterns ordered by specificity — instruments first, then drum sub-types last.
+// When multiple patterns match, the more descriptive/specific one wins.
+const TYPE_PATTERNS = [
+  // Specific instruments — check these first
+  ['guitar',     /\b(guitar|gtr|guit)\b/i],
+  ['keys',       /\b(piano|keys|organ|rhodes|wurlitzer|electric[\s-]?piano)\b/i],
+  ['strings',    /\b(strings|violin|cello|viola|orchestr)/i],
+  ['brass',      /\b(brass|trumpet|horn|trombone|sax)/i],
+  ['vocal',      /\b(vocal|vox|voice|acapella|choir)\b/i],
+  ['synth',      /\b(synth|lead|pad|pluck|arp|stab)\b/i],
+  ['bass',       /\b(bass|sub|808)\b/i],
+  ['fx',         /\b(fx|effect|riser|impact|sweep|transition|whoosh|noise)\b/i],
+  // Specific drum types
+  ['kick',       /\b(kick|kik|bd)\b/i],
+  ['snare',      /\b(snare|snr)\b/i],
+  ['hihat',      /\b(hi[\s-]?hat|hh|hat)\b/i],
+  ['clap',       /\b(clap|clp)\b/i],
+  ['cymbal',     /\b(cymbal|crash|ride)\b/i],
+  ['tom',        /\b(tom)\b/i],
+  ['percussion', /\b(perc|percussion|drums?|shaker|tambourine|conga|bongo|rim)\b/i],
+  // Generic
+  ['loop',       /\b(loop|beat|groove|break)\b/i],
+];
 
 function classify(filePath) {
   // Replace common path/filename separators with spaces for matching
@@ -23,14 +28,14 @@ function classify(filePath) {
 
   // First pass: try to match from the filename itself
   const filename = searchText.split('/').pop() || searchText;
-  for (const [type, pattern] of Object.entries(TYPE_PATTERNS)) {
+  for (const [type, pattern] of TYPE_PATTERNS) {
     if (pattern.test(filename)) {
       return type;
     }
   }
 
   // Second pass: check parent folders for clues
-  for (const [type, pattern] of Object.entries(TYPE_PATTERNS)) {
+  for (const [type, pattern] of TYPE_PATTERNS) {
     if (pattern.test(searchText)) {
       return type;
     }
