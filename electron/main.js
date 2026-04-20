@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, nativeImage, protocol, net, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, nativeImage, protocol, net, shell, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -84,6 +84,13 @@ app.on('window-all-closed', () => {
 });
 
 // --- IPC Handlers ---
+
+ipcMain.handle('select-folder', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+  });
+  return result.canceled ? null : result.filePaths[0];
+});
 
 ipcMain.handle('scan-library', async (_event, dirPath) => {
   const result = await scanDirectory(dirPath, (progress) => {

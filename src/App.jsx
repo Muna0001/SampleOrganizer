@@ -5,7 +5,6 @@ import InstrumentPanel from './components/InstrumentPanel';
 import Player from './components/Player';
 import SamplerEngine from './audio/SamplerEngine';
 
-const SAMPLE_DIR = '/Users/natemueller/Music';
 
 function App() {
   const [samples, setSamples] = useState([]);
@@ -103,9 +102,11 @@ function App() {
   };
 
   const handleScan = async () => {
+    const folder = await window.electronAPI.selectFolder();
+    if (!folder) return;
     setIsScanning(true);
     setScanProgress({ processed: 0, total: 0 });
-    await window.electronAPI.scanLibrary(SAMPLE_DIR);
+    await window.electronAPI.scanLibrary(folder);
     setIsScanning(false);
 
     const [result, newStats] = await Promise.all([
