@@ -87,9 +87,9 @@ app.on('window-all-closed', () => {
 
 ipcMain.handle('select-folder', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory'],
+    properties: ['openDirectory', 'multiSelections'],
   });
-  return result.canceled ? null : result.filePaths[0];
+  return result.canceled ? null : result.filePaths;
 });
 
 ipcMain.handle('scan-library', async (_event, dirPath) => {

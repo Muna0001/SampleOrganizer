@@ -102,11 +102,13 @@ function App() {
   };
 
   const handleScan = async () => {
-    const folder = await window.electronAPI.selectFolder();
-    if (!folder) return;
+    const folders = await window.electronAPI.selectFolder();
+    if (!folders || folders.length === 0) return;
     setIsScanning(true);
     setScanProgress({ processed: 0, total: 0 });
-    await window.electronAPI.scanLibrary(folder);
+    for (const folder of folders) {
+      await window.electronAPI.scanLibrary(folder);
+    }
     setIsScanning(false);
 
     const [result, newStats] = await Promise.all([
