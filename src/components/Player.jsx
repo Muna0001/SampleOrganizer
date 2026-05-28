@@ -73,6 +73,11 @@ function Player({ sample, onPlayingChange }) {
 
     if (!sample) return;
 
+    // If sample changes again before fetch+decode resolves, the stale
+    // chain must not start a new looping source — that's how orphaned
+    // sources stack up and play forever.
+    let cancelled = false;
+
     const url = `sample://${sample.path.replaceAll('#', '%23')}`;
 
     // Load waveform visuals
@@ -83,6 +88,7 @@ function Player({ sample, onPlayingChange }) {
       .then((res) => res.arrayBuffer())
       .then((arr) => audioCtxRef.current.decodeAudioData(arr))
       .then((audioBuffer) => {
+        if (cancelled) return;
         bufferRef.current = audioBuffer;
         setDuration(audioBuffer.duration);
         _startSource(0);
@@ -90,12 +96,18 @@ function Player({ sample, onPlayingChange }) {
         onPlayingChange?.(true);
       })
       .catch(() => {});
+
+    return () => { cancelled = true; };
   }, [sample]);
 
   function _startSource(offset) {
     const ctx = audioCtxRef.current;
     const buffer = bufferRef.current;
     if (!ctx || !buffer) return;
+
+    // Defensive: stop any source still attached before starting a new one,
+    // so a stray call can't stack overlapping playbacks.
+    _stopSource();
 
     if (ctx.state === 'suspended') ctx.resume();
 
