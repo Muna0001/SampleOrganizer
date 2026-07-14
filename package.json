@@ -2,10 +2,13 @@
   "name": "sample-organizer",
   "version": "1.0.0",
   "description": "Sample pack organizer with tagging, search, and audio preview",
+  "author": "muna0001 <muna0001@gmail.com>",
   "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
     "build": "vite build",
+    "pack": "vite build && electron-builder --mac --dir",
+    "dist:mac": "vite build && electron-builder --mac",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "postinstall": "electron-rebuild -f -w better-sqlite3"
   },
@@ -19,6 +22,7 @@
     "@vitejs/plugin-react": "^4.3.0",
     "concurrently": "^9.0.0",
     "electron": "^33.0.0",
+    "electron-builder": "^26.15.3",
     "playwright-core": "^1.60.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
