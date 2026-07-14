@@ -11,10 +11,10 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -27,15 +27,32 @@ jobs:
 
       # Signing + notarization credentials are optional: without them the
       # build still succeeds but produces an unsigned app (fine for testing,
-      # not for distribution — see PACKAGING.md).
+      # not for distribution — see PACKAGING.md). Unset secrets arrive as
+      # empty strings, and electron-builder treats an empty CSC_LINK as a
+      # certificate path — so only export the variables when actually set.
       - name: Package macOS app (DMG + zip, arm64 + x64)
-        run: npx electron-builder --mac --publish never
         env:
-          CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          MAC_CERT_P12_BASE64: ${{ secrets.MAC_CERT_P12_BASE64 }}
+          MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          APPLE_ID_SECRET: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD_SECRET: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID_SECRET: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$MAC_CERT_P12_BASE64" ]; then
+            echo "Signing certificate found — building signed app"
+            export CSC_LINK="$MAC_CERT_P12_BASE64"
+            export CSC_KEY_PASSWORD="$MAC_CERT_PASSWORD"
+          else
+            echo "No signing certificate configured — building unsigned app"
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+          fi
+          if [ -n "$APPLE_ID_SECRET" ]; then
+            echo "Notarization credentials found — will notarize"
+            export APPLE_ID="$APPLE_ID_SECRET"
+            export APPLE_APP_SPECIFIC_PASSWORD="$APPLE_APP_PASSWORD_SECRET"
+            export APPLE_TEAM_ID="$APPLE_TEAM_ID_SECRET"
+          fi
+          npx electron-builder --mac --publish never
 
       - name: Upload installers
         uses: actions/upload-artifact@v4
