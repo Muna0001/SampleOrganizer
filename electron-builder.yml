@@ -1,0 +1,44 @@
+appId: com.muna0001.sampleorganizer
+productName: Sample Organizer
+copyright: Copyright © 2026
+
+directories:
+  buildResources: build
+  output: release
+
+files:
+  - dist/**
+  - electron/**
+  - package.json
+
+# Native modules (better-sqlite3) must live outside the asar archive to load
+asarUnpack:
+  - "**/*.node"
+
+mac:
+  category: public.app-category.music
+  icon: build/icon.png
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  artifactName: "SampleOrganizer-${version}-${arch}.${ext}"
+  darkModeSupport: true
+
+dmg:
+  artifactName: "SampleOrganizer-${version}-${arch}.${ext}"
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+# Never auto-publish; artifacts are uploaded manually or by CI
+publish: null
