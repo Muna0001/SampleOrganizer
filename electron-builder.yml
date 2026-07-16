@@ -30,6 +30,18 @@ mac:
   artifactName: "SampleOrganizer-${version}-${arch}.${ext}"
   darkModeSupport: true
 
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: "SampleOrganizer-Setup-${version}.${ext}"
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Sample Organizer
+
 dmg:
   artifactName: "SampleOrganizer-${version}-${arch}.${ext}"
   contents:

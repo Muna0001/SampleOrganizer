@@ -9,6 +9,7 @@
     "build": "vite build",
     "pack": "vite build && electron-builder --mac --dir",
     "dist:mac": "vite build && electron-builder --mac",
+    "dist:win": "vite build && electron-builder --win",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "postinstall": "electron-rebuild -f -w better-sqlite3"
   },
