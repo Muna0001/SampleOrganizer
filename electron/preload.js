@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  platform: process.platform,
   selectFolder: () => ipcRenderer.invoke('select-folder'),
   scanLibrary: (dirPath) => ipcRenderer.invoke('scan-library', dirPath),
   getSamples: (filters) => ipcRenderer.invoke('get-samples', filters),

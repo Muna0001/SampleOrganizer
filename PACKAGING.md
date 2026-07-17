@@ -1,9 +1,10 @@
-# Packaging Sample Organizer as a standalone macOS app
+# Packaging Sample Organizer as a standalone app (macOS + Windows)
 
-This project uses [electron-builder](https://www.electron.build/) to produce a
-standalone `.app` bundled inside a `.dmg` installer that you can host on your
-website. Config lives in `electron-builder.yml`; entitlements in
-`build/entitlements.mac.plist`; the app icon in `build/icon.png`.
+This project uses [electron-builder](https://www.electron.build/) to produce
+standalone installers you can host on your website: a `.dmg` for macOS and an
+NSIS setup `.exe` for Windows. Config lives in `electron-builder.yml`;
+macOS entitlements in `build/entitlements.mac.plist`; the app icon in
+`build/icon.png`.
 
 ## TL;DR
 
@@ -13,14 +14,19 @@ npm ci
 npm run dist:mac
 # → release/SampleOrganizer-1.0.0-arm64.dmg  (Apple Silicon)
 # → release/SampleOrganizer-1.0.0-x64.dmg    (Intel)
+
+# On a Windows PC:
+npm ci
+npm run dist:win
+# → release/SampleOrganizer-Setup-1.0.0.exe
 ```
 
-Or run the **Build macOS app** GitHub Actions workflow (Actions tab →
-"Build macOS app" → Run workflow), which builds on a macOS runner and uploads
-the DMGs as artifacts. Pushing a tag like `v1.0.0` also triggers it.
+Or run the **Build macOS + Windows apps** GitHub Actions workflow (Actions tab
+→ Run workflow), which builds both platforms in parallel and uploads the
+installers as artifacts. Pushing a tag like `v1.0.0` also triggers it.
 
-Upload the two DMGs to your website and link them ("Download for Apple
-Silicon" / "Download for Intel"). Users drag the app into `/Applications`.
+Upload the installers to your website with three links: "Download for Apple
+Silicon", "Download for Intel Mac", and "Download for Windows".
 
 ## Signing & notarization (required for distribution)
 
@@ -85,6 +91,20 @@ If the secrets are missing the workflow still builds an **unsigned** app you
 can test yourself (right-click → Open the first time, or
 `xattr -dc "/Applications/Sample Organizer.app"`), but don't ship that to
 users.
+
+## Windows notes
+
+- The Windows build is currently **unsigned**. Users see a SmartScreen prompt
+  ("Windows protected your PC") and click **More info → Run anyway** — a much
+  smaller hurdle than macOS Gatekeeper, so shipping unsigned is a reasonable
+  way to start. To remove the prompt later, buy a code-signing certificate
+  (OV/EV, roughly $100–400/year) or use
+  [Azure Trusted Signing](https://azure.microsoft.com/en-us/products/trusted-signing)
+  (~$10/month), then wire it into the workflow.
+- AIFF preview is macOS-only (it relies on Apple's built-in `afconvert`).
+  On Windows, WAV/MP3/FLAC/OGG previews all work; AIFF files still get
+  scanned, tagged, and drag-and-dropped into a DAW — they just won't play
+  in the built-in previewer.
 
 ## Notes
 

@@ -1,4 +1,4 @@
-name: Build macOS app
+name: Build macOS + Windows apps
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ on:
       - "v*"
 
 jobs:
-  build:
+  build-macos:
     runs-on: macos-latest
     steps:
       - name: Check out code
@@ -61,4 +61,34 @@ jobs:
           path: |
             release/*.dmg
             release/*.zip
+          if-no-files-found: error
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build renderer (Vite)
+        run: npm run build
+
+      # Built unsigned: Windows shows a SmartScreen prompt that users can
+      # click through. Add a code-signing certificate later to remove it.
+      - name: Package Windows app (NSIS installer, x64)
+        run: npx electron-builder --win --publish never
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: SampleOrganizer-Windows
+          path: release/*.exe
           if-no-files-found: error

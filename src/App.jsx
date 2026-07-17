@@ -158,7 +158,7 @@ function App() {
   };
 
   return (
-    <div className="app">
+    <div className={`app platform-${window.electronAPI?.platform || 'darwin'}`}>
       <div className="app-header">
         <h1><span className="app-title-pixel">OH A COMBER</span> <span className="app-title-sub">— Sample Organizer</span></h1>
         <button className="scan-btn" onClick={handleScan} disabled={isScanning}>
