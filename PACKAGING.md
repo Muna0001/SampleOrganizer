@@ -30,9 +30,10 @@ Silicon", "Download for Intel Mac", and "Download for Windows".
 
 ## Signing & notarization (required for distribution)
 
-macOS Gatekeeper blocks unsigned apps downloaded from the internet — users
-would see *"Sample Organizer is damaged and can't be opened"*. To distribute
-outside the App Store you need to **sign** with a Developer ID certificate and
+macOS Gatekeeper blocks unsigned apps downloaded from the internet — users see
+*"Sample Organizer can't be opened because it is from an unidentified
+developer"* and have to right-click → **Open** the first time. To ship without
+that hurdle you need to **sign** with a Developer ID certificate and
 **notarize** with Apple. Both happen automatically during the build once
 credentials are available.
 
@@ -87,10 +88,22 @@ Then run the workflow (or push a `v*` tag) and download the
 `SampleOrganizer-macOS` artifact — those DMGs are signed, notarized, and ready
 for your website.
 
-If the secrets are missing the workflow still builds an **unsigned** app you
-can test yourself (right-click → Open the first time, or
-`xattr -dc "/Applications/Sample Organizer.app"`), but don't ship that to
-users.
+### Unsigned builds
+
+If the secrets are missing the workflow still builds an **unsigned** app you can
+test yourself. `build/adhoc-sign.js` ad-hoc signs it during packaging, which is
+what keeps Gatekeeper on the recoverable "unidentified developer" path — without
+it the bundle has no code-signature resource seal and macOS reports the
+dead-end *"Sample Organizer is damaged and can't be opened"* instead.
+
+To run an unsigned build, drag it to `/Applications`, then either right-click →
+**Open** and confirm, or clear the download quarantine flag directly:
+
+```bash
+xattr -cr "/Applications/Sample Organizer.app"
+```
+
+Fine for your own testing; don't ship it to users.
 
 ## Windows notes
 

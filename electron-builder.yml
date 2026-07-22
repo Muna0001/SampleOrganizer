@@ -6,6 +6,10 @@ directories:
   buildResources: build
   output: release
 
+# Rescues unsigned macOS builds from Gatekeeper's "damaged" error — no-ops when
+# a real Developer ID certificate signed the build. See build/adhoc-sign.js.
+afterPack: build/adhoc-sign.js
+
 files:
   - dist/**
   - electron/**
