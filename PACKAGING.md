@@ -1,4 +1,4 @@
-# Packaging Sample Organizer as a standalone app (macOS + Windows)
+# Packaging Oh a comber as a standalone app (macOS + Windows)
 
 This project uses [electron-builder](https://www.electron.build/) to produce
 standalone installers you can host on your website: a `.dmg` for macOS and an
@@ -12,13 +12,13 @@ macOS entitlements in `build/entitlements.mac.plist`; the app icon in
 # On a Mac:
 npm ci
 npm run dist:mac
-# → release/SampleOrganizer-1.0.0-arm64.dmg  (Apple Silicon)
-# → release/SampleOrganizer-1.0.0-x64.dmg    (Intel)
+# → release/OhAComber-1.0.0-arm64.dmg  (Apple Silicon)
+# → release/OhAComber-1.0.0-x64.dmg    (Intel)
 
 # On a Windows PC:
 npm ci
 npm run dist:win
-# → release/SampleOrganizer-Setup-1.0.0.exe
+# → release/OhAComber-Setup-1.0.0.exe
 ```
 
 Or run the **Build macOS + Windows apps** GitHub Actions workflow (Actions tab
@@ -31,7 +31,7 @@ Silicon", "Download for Intel Mac", and "Download for Windows".
 ## Signing & notarization (required for distribution)
 
 macOS Gatekeeper blocks unsigned apps downloaded from the internet — users see
-*"Sample Organizer can't be opened because it is from an unidentified
+*"Oh a comber can't be opened because it is from an unidentified
 developer"* and have to right-click → **Open** the first time. To ship without
 that hurdle you need to **sign** with a Developer ID certificate and
 **notarize** with Apple. Both happen automatically during the build once
@@ -85,7 +85,7 @@ Add these repository secrets (Settings → Secrets and variables → Actions):
 | `APPLE_TEAM_ID` | your 10-character Team ID |
 
 Then run the workflow (or push a `v*` tag) and download the
-`SampleOrganizer-macOS` artifact — those DMGs are signed, notarized, and ready
+`OhAComber-macOS` artifact — those DMGs are signed, notarized, and ready
 for your website.
 
 ### Unsigned builds
@@ -94,13 +94,13 @@ If the secrets are missing the workflow still builds an **unsigned** app you can
 test yourself. `build/adhoc-sign.js` ad-hoc signs it during packaging, which is
 what keeps Gatekeeper on the recoverable "unidentified developer" path — without
 it the bundle has no code-signature resource seal and macOS reports the
-dead-end *"Sample Organizer is damaged and can't be opened"* instead.
+dead-end *"Oh a comber is damaged and can't be opened"* instead.
 
 To run an unsigned build, drag it to `/Applications`, then either right-click →
 **Open** and confirm, or clear the download quarantine flag directly:
 
 ```bash
-xattr -cr "/Applications/Sample Organizer.app"
+xattr -cr "/Applications/Oh a comber.app"
 ```
 
 Fine for your own testing; don't ship it to users.

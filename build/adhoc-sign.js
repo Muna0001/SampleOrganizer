@@ -4,8 +4,8 @@
 // entirely. The bundle then keeps the Electron binary's original linker-signed
 // ad-hoc signature but has no _CodeSignature resource seal, so macOS rejects it
 // with "code has no resources but signature indicates they must be present" and
-// tells the user *"Sample Organizer is damaged and can't be opened"* — a hard
-// block with no right-click → Open escape hatch.
+// tells the user *"Oh a comber is damaged and can't be opened"* — a hard block
+// with no right-click → Open escape hatch.
 //
 // Re-signing ad-hoc writes a proper resource seal. The app is still unsigned as
 // far as Apple is concerned, so Gatekeeper still blocks a downloaded copy — but

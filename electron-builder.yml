@@ -1,5 +1,5 @@
-appId: com.muna0001.sampleorganizer
-productName: Sample Organizer
+appId: com.muna0001.ohacomber
+productName: Oh a comber
 copyright: Copyright © 2026
 
 directories:
@@ -31,7 +31,7 @@ mac:
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
-  artifactName: "SampleOrganizer-${version}-${arch}.${ext}"
+  artifactName: "OhAComber-${version}-${arch}.${ext}"
   darkModeSupport: true
 
 win:
@@ -39,15 +39,15 @@ win:
   target:
     - target: nsis
       arch: [x64]
-  artifactName: "SampleOrganizer-Setup-${version}.${ext}"
+  artifactName: "OhAComber-Setup-${version}.${ext}"
 
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
-  shortcutName: Sample Organizer
+  shortcutName: Oh a comber
 
 dmg:
-  artifactName: "SampleOrganizer-${version}-${arch}.${ext}"
+  artifactName: "OhAComber-${version}-${arch}.${ext}"
   contents:
     - x: 130
       y: 220
