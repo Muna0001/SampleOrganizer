@@ -12,6 +12,12 @@
 // with the ordinary "unidentified developer" prompt that right-click → Open
 // clears, instead of the dead-end "damaged" error.
 //
+// Why afterPack and not afterSign: afterPack runs *before* electron-builder's
+// own signing step, so in a properly signed build the real Developer ID
+// signature is applied afterwards with --force and replaces this one. afterSign
+// would be the tidier hook point, but electron-builder skips it entirely when
+// no signing occurred — which is precisely the case this hook exists for.
+//
 // Note: signing without --options runtime is deliberate. Hardened runtime under
 // an ad-hoc signature enables library validation, which would refuse to load
 // better-sqlite3's unsigned .node binary. Properly signed builds still get
@@ -21,8 +27,9 @@ const { execFileSync } = require("node:child_process");
 const path = require("node:path");
 
 // True only when the bundle carries a signature macOS will actually accept.
-// Checking the result rather than the build config means this fires in exactly
-// the cases that would fail, whether the build ran in CI or on a laptop.
+// At afterPack time nothing has been signed yet, so this is effectively always
+// false today; it is kept as a guard against electron-builder reordering its
+// hooks, so a future real signature is never clobbered with an ad-hoc one.
 function isProperlySigned(appPath) {
   try {
     execFileSync("codesign", ["--verify", "--deep", "--strict", appPath], {

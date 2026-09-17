@@ -28,6 +28,12 @@ mac:
     - target: zip
       arch: [arm64, x64]
   hardenedRuntime: true
+  # Only sign with a Developer ID Application certificate — the one kind that
+  # Gatekeeper and notarization accept for apps distributed outside the App
+  # Store. Without this qualifier electron-builder falls back to any certificate
+  # in the keychain and silently signs a release with an "Apple Development" or
+  # "Apple Distribution" cert, which builds fine and is rejected by Apple.
+  identity: Developer ID Application
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
