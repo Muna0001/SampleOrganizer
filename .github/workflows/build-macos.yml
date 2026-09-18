@@ -1,14 +1,27 @@
-name: Build macOS + Windows apps
+name: Build and release
 
+# Two ways in:
+#   - Push a tag like v1.2.3  → build both platforms, then publish a GitHub
+#     Release with the installers attached. This is how a release ships.
+#   - Run workflow (manual)   → build only; installers land as workflow
+#     artifacts for testing. Nothing is published.
 on:
   workflow_dispatch:
   push:
     tags:
       - "v*"
 
+# Build jobs only read the repo. The release job alone is granted write.
+permissions:
+  contents: read
+
 jobs:
   build-macos:
     runs-on: macos-latest
+    outputs:
+      # "true" only when every packaged app is Developer ID signed with a
+      # notarization ticket stapled. The release job refuses anything less.
+      distributable: ${{ steps.verify.outputs.distributable }}
     steps:
       - name: Check out code
         uses: actions/checkout@v5
@@ -18,6 +31,21 @@ jobs:
         with:
           node-version: 22
           cache: npm
+
+      # The version in package.json is baked into every installer filename,
+      # so a tag that disagrees with it would publish v1.0.1 assets named
+      # 1.0.0. Catch that before spending fifteen minutes building.
+      - name: Check tag matches package.json version
+        if: github.ref_type == 'tag'
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          core="${tag%%-*}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$core" != "$pkg" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $pkg. Bump the version in package.json, commit, then re-tag."
+            exit 1
+          fi
+          echo "Tag $GITHUB_REF_NAME matches package.json $pkg"
 
       - name: Install dependencies
         run: npm ci
@@ -58,6 +86,24 @@ jobs:
           fi
           npx electron-builder --mac --publish never $FORCE_SIGN
 
+      # Inspect the built apps rather than trusting the config above: this is
+      # the same check a downloader's Mac performs. A signed-but-not-notarized
+      # app (cert secrets set, Apple ID secrets missing) fails here too.
+      - name: Verify macOS apps are signed and notarized
+        id: verify
+        run: |
+          ok=true
+          for app in release/mac*/*.app; do
+            if codesign -dvv "$app" 2>&1 | grep -q "^Authority=Developer ID Application" \
+               && xcrun stapler validate "$app" >/dev/null 2>&1; then
+              echo "✓ $app — Developer ID signed, notarization ticket stapled"
+            else
+              echo "✗ $app — unsigned or not notarized (fine for testing, not for a release)"
+              ok=false
+            fi
+          done
+          echo "distributable=$ok" >> "$GITHUB_OUTPUT"
+
       - name: Upload installers
         uses: actions/upload-artifact@v4
         with:
@@ -79,6 +125,19 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Check tag matches package.json version
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          core="${tag%%-*}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$core" != "$pkg" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $pkg. Bump the version in package.json, commit, then re-tag."
+            exit 1
+          fi
+          echo "Tag $GITHUB_REF_NAME matches package.json $pkg"
+
       - name: Install dependencies
         run: npm ci
 
@@ -96,3 +155,103 @@ jobs:
           name: OhAComber-Windows
           path: release/*.exe
           if-no-files-found: error
+
+  release:
+    # Only a tag push publishes. Manual runs stop at the artifacts above.
+    if: github.ref_type == 'tag'
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Refuse to publish an unsigned macOS build
+        if: needs.build-macos.outputs.distributable != 'true'
+        run: |
+          echo "::error::The macOS build is not signed and notarized, so Gatekeeper would block it on every download. Refusing to attach it to a public release. Add the signing secrets described in PACKAGING.md, then re-run this workflow."
+          exit 1
+
+      - name: Download macOS installers
+        uses: actions/download-artifact@v4
+        with:
+          name: OhAComber-macOS
+          path: mac
+
+      - name: Download Windows installer
+        uses: actions/download-artifact@v4
+        with:
+          name: OhAComber-Windows
+          path: win
+
+      # A tag with a suffix (v1.1.0-beta.1) becomes a pre-release: it is not
+      # shown as "Latest" and the /releases/latest/download/ links skip it,
+      # so it is a safe way to test this job without disturbing real users.
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          version="${tag#v}"
+          core="${version%%-*}"
+
+          arm64="$(ls mac/*-arm64.dmg)"
+          x64="$(ls mac/*-x64.dmg)"
+          exe="$(ls win/*.exe)"
+          assets=(
+            "$arm64#Oh a comber $version — Apple Silicon (arm64)"
+            "$x64#Oh a comber $version — Intel (x64)"
+            "$exe#Oh a comber $version — Windows installer (x64)"
+          )
+
+          # Re-running the workflow for an existing release replaces the
+          # installers but leaves the notes alone, since they may have been
+          # edited by hand on GitHub.
+          if gh release view "$tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag already exists — replacing its assets"
+            gh release upload "$tag" -R "$GITHUB_REPOSITORY" --clobber "${assets[@]}"
+            exit 0
+          fi
+
+          flags=()
+          if [ "$version" != "$core" ]; then
+            flags+=(--prerelease)
+          fi
+
+          cat > notes.md <<'TEMPLATE'
+          **Oh a comber @VERSION@** — a sample-pack organizer with tagging, search, and audio preview.
+
+          ## Downloads
+
+          | Platform | Download |
+          |---|---|
+          | Mac — Apple Silicon (M1 or later) | @ARM64@ |
+          | Mac — Intel | @X64@ |
+          | Windows (64-bit) | @EXE@ |
+
+          Not sure which Mac you have? Apple menu → **About This Mac**. "Chip: Apple M…" means Apple Silicon; "Processor: Intel…" means Intel.
+
+          ## Installing
+
+          **Mac:** open the DMG and drag **Oh a comber** to your Applications folder. Both Mac builds are signed with an Apple Developer ID and notarized by Apple, so they open without security warnings.
+
+          **Windows:** run the installer. It isn't code-signed yet, so Windows SmartScreen will show *"Windows protected your PC"* — click **More info**, then **Run anyway**. This is a one-time prompt.
+
+          ## Known limitations
+
+          - **Windows:** AIFF files scan and tag normally but won't play in the built-in previewer (it relies on a macOS-only audio converter). WAV, MP3, FLAC and OGG preview fine on both platforms.
+
+          TEMPLATE
+          sed -i \
+            -e "s|@VERSION@|$version|g" \
+            -e "s|@ARM64@|$(basename "$arm64")|g" \
+            -e "s|@X64@|$(basename "$x64")|g" \
+            -e "s|@EXE@|$(basename "$exe")|g" \
+            notes.md
+
+          # --generate-notes appends a "What's Changed" list of merged PRs
+          # since the previous release beneath the template above.
+          gh release create "$tag" -R "$GITHUB_REPOSITORY" --verify-tag \
+            --title "Oh a comber $version" \
+            --notes "$(cat notes.md)" --generate-notes \
+            "${flags[@]}" "${assets[@]}"
+
+          echo "Published https://github.com/$GITHUB_REPOSITORY/releases/tag/$tag"
