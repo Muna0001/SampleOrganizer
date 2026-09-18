@@ -6,7 +6,40 @@ NSIS setup `.exe` for Windows. Config lives in `electron-builder.yml`;
 macOS entitlements in `build/entitlements.mac.plist`; the app icon in
 `build/icon.png`.
 
-## TL;DR
+## TL;DR — shipping a release
+
+```bash
+# 1. bump "version" in package.json and commit it
+# 2. tag and push
+git tag v1.0.1
+git push origin v1.0.1
+```
+
+That's it. The **Build and release** workflow builds both platforms, then
+publishes a GitHub Release at
+`https://github.com/Muna0001/SampleOrganizer/releases/tag/v1.0.1` with three
+installers attached: Apple Silicon DMG, Intel DMG, and the Windows setup
+`.exe`. Link to those from your website. The
+`/releases/latest/download/<filename>` URL form always points at the newest
+non-pre-release.
+
+Things the workflow enforces, so you don't have to remember them:
+
+- **The tag must match `package.json`.** The version is baked into every
+  installer filename; a mismatch fails the build in the first minute.
+- **macOS installers must be signed and notarized** or the release is refused
+  (see below). Nothing unsigned ever reaches the public Releases page.
+- **A tag with a suffix — `v1.1.0-beta.1` — becomes a pre-release.** It isn't
+  marked "Latest" and the `/latest/download/` links skip it, so it's the safe
+  way to try a build on other people, or to test this workflow.
+- **Re-running the workflow for an existing tag replaces the installers** and
+  leaves the release notes alone, so you can edit those by hand on GitHub.
+
+The release notes get a download table and install instructions, followed by
+an auto-generated "What's Changed" list of the PRs merged since the last
+release.
+
+### Building without releasing
 
 ```bash
 # On a Mac:
@@ -21,12 +54,9 @@ npm run dist:win
 # → release/OhAComber-Setup-1.0.0.exe
 ```
 
-Or run the **Build macOS + Windows apps** GitHub Actions workflow (Actions tab
-→ Run workflow), which builds both platforms in parallel and uploads the
-installers as artifacts. Pushing a tag like `v1.0.0` also triggers it.
-
-Upload the installers to your website with three links: "Download for Apple
-Silicon", "Download for Intel Mac", and "Download for Windows".
+Or run the workflow by hand (Actions tab → **Build and release** → *Run
+workflow*): that builds both platforms and uploads the installers as workflow
+artifacts for testing, and publishes nothing.
 
 ## Signing & notarization (required for distribution)
 
@@ -102,9 +132,11 @@ Add these repository secrets (Settings → Secrets and variables → Actions):
 | `APPLE_APP_SPECIFIC_PASSWORD` | app-specific password from step 3 |
 | `APPLE_TEAM_ID` | your 10-character Team ID |
 
-Then run the workflow (or push a `v*` tag) and download the
-`OhAComber-macOS` artifact — those DMGs are signed, notarized, and ready
-for your website.
+**All five are required before a tag push can publish.** The workflow inspects
+the built apps the same way a downloader's Mac does — Developer ID signature
+plus a stapled notarization ticket — and refuses to create the release if
+either is missing. Without the secrets, a tag push still builds and uploads
+artifacts, then fails at the release step with a message pointing here.
 
 ### Unsigned builds
 
