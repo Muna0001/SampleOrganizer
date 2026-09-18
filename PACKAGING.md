@@ -44,6 +44,15 @@ credentials are available.
    - Easiest: Xcode → Settings → Accounts → your team → *Manage Certificates*
      → **+** → *Developer ID Application*.
    - Or via https://developer.apple.com/account/resources/certificates
+
+   > **It has to be exactly "Developer ID Application".** The Apple portal
+   > offers several similar-sounding kinds and the others will not work here:
+   > *Apple Development* is for running on your own devices, *Apple Distribution*
+   > and *Mac App Store* are for App Store submission. A build signed with one
+   > of those looks fine locally and is rejected by notarization. Only the
+   > **Account Holder** role can create Developer ID certificates. The build is
+   > pinned to this type (`mac.identity` in `electron-builder.yml`), so with the
+   > wrong cert installed it refuses to sign rather than signing incorrectly.
 3. **Create an app-specific password** for notarization at
    https://account.apple.com → Sign-In and Security → App-Specific Passwords.
 4. **Find your Team ID** (10-character code) at
@@ -52,15 +61,24 @@ credentials are available.
 ### Building locally on a Mac
 
 If the Developer ID certificate is in your login keychain, electron-builder
-finds it automatically. Provide notarization credentials via environment
-variables:
+finds it automatically. For notarization, store the credentials in your
+keychain **once** — this prompts for the app-specific password interactively,
+so it never lands in a shell variable or your history:
 
 ```bash
-export APPLE_ID="you@example.com"
-export APPLE_APP_SPECIFIC_PASSWORD="xxxx-xxxx-xxxx-xxxx"
-export APPLE_TEAM_ID="ABCDE12345"
-npm run dist:mac
+xcrun notarytool store-credentials "oh-a-comber" --apple-id "you@example.com" --team-id "ABCDE12345"
 ```
+
+Then every release build is just:
+
+```bash
+APPLE_KEYCHAIN_PROFILE="oh-a-comber" npm run dist:mac
+```
+
+Electron-builder also accepts the credentials as plain environment variables
+(`APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`) — that is what the
+GitHub workflow uses, since secrets arrive that way — but prefer the keychain
+profile on a laptop.
 
 Notarization uploads the app to Apple and usually takes 1–10 minutes. When it
 finishes, the DMGs in `release/` are ready to publish.

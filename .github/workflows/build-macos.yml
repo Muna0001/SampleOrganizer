@@ -42,6 +42,10 @@ jobs:
             echo "Signing certificate found — building signed app"
             export CSC_LINK="$MAC_CERT_P12_BASE64"
             export CSC_KEY_PASSWORD="$MAC_CERT_PASSWORD"
+            # A certificate was supplied, so signing must succeed: fail the
+            # build if it is not a Developer ID Application cert rather than
+            # quietly shipping an unsigned artifact under a "signed" run.
+            FORCE_SIGN="-c.forceCodeSigning=true"
           else
             echo "No signing certificate configured — building unsigned app"
             export CSC_IDENTITY_AUTO_DISCOVERY=false
@@ -52,7 +56,7 @@ jobs:
             export APPLE_APP_SPECIFIC_PASSWORD="$APPLE_APP_PASSWORD_SECRET"
             export APPLE_TEAM_ID="$APPLE_TEAM_ID_SECRET"
           fi
-          npx electron-builder --mac --publish never
+          npx electron-builder --mac --publish never $FORCE_SIGN
 
       - name: Upload installers
         uses: actions/upload-artifact@v4
